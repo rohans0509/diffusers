@@ -314,7 +314,7 @@ def parse_args():
         help="The name of the repository to keep in sync with the local `output_dir`.",
     )
     parser.add_argument(
-        "--logging_dir",
+        "--project_dir",
         type=str,
         default="logs",
         help=(
@@ -419,7 +419,7 @@ def main():
                 " use `--variant=non_ema` instead."
             ),
         )
-    logging_dir = os.path.join(args.output_dir, args.logging_dir)
+    project_dir = os.path.join(args.output_dir, args.project_dir)
 
     accelerator_project_config = ProjectConfiguration(total_limit=args.checkpoints_total_limit)
 
@@ -427,7 +427,7 @@ def main():
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         mixed_precision=args.mixed_precision,
         log_with=args.report_to,
-        logging_dir=logging_dir,
+        project_dir=project_dir,
         project_config=accelerator_project_config,
     )
 
@@ -462,9 +462,9 @@ def main():
             ).repo_id
 
     # Load scheduler, tokenizer and models.
-    noise_scheduler = DDPMScheduler.from_pretrained(args.pretrained_model_name_or_path, subfolder="scheduler")
+    noise_scheduler = DDPMScheduler.from_pretrained('runwayml/stable-diffusion-v1-5', subfolder="scheduler")
     tokenizer = CLIPTokenizer.from_pretrained(
-        args.pretrained_model_name_or_path, subfolder="tokenizer", revision=args.revision
+       'runwayml/stable-diffusion-v1-5', subfolder="tokenizer", revision=args.revision
     )
 
     def deepspeed_zero_init_disabled_context_manager():
@@ -487,16 +487,23 @@ def main():
     # `from_pretrained` So CLIPTextModel and AutoencoderKL will not enjoy the parameter sharding
     # across multiple gpus and only UNet2DConditionModel will get ZeRO sharded.
     with ContextManagers(deepspeed_zero_init_disabled_context_manager()):
-        text_encoder = CLIPTextModel.from_pretrained(
-            args.pretrained_model_name_or_path, subfolder="text_encoder", revision=args.revision
-        )
-        vae = AutoencoderKL.from_pretrained(
-            args.pretrained_model_name_or_path, subfolder="vae", revision=args.revision
-        )
+    #     text_encoder = CLIPTextModel.from_pretrained(
+    #         args.pretrained_model_name_or_path, subfolder="text_encoder", revision=args.revision
+    #     )
+    #     vae = AutoencoderKL.from_pretrained(
+    #         args.pretrained_model_name_or_path, subfolder="vae", revision=args.revision
+    #     )
 
-    unet = UNet2DConditionModel.from_pretrained(
-        args.pretrained_model_name_or_path, subfolder="unet", revision=args.non_ema_revision
+    # unet = UNet2DConditionModel.from_pretrained(
+    #     args.pretrained_model_name_or_path, subfolder="unet", revision=args.non_ema_revision
+    # )
+
+        text_encoder = CLIPTextModel.from_pretrained(
+        'runwayml/stable-diffusion-v1-5', subfolder="text_encoder", revision=None
     )
+        vae = AutoencoderKL.from_pretrained('runwayml/stable-diffusion-v1-5', subfolder="vae", revision=None).cuda()
+        unet = UNet2DConditionModel.from_pretrained(
+    'textdiffuser-ckpt/diffusion_backbone_2.1', subfolder="unet",revision=None).cuda()
 
     # Freeze vae and text_encoder
     vae.requires_grad_(False)
